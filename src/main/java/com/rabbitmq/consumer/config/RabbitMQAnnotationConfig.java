@@ -60,7 +60,8 @@ public class RabbitMQAnnotationConfig {
         //8. DLX 설정을 위해서는 위의 설정을 마치가 한가지더 설정이 있습니다. 메시지를 전송받는 Listener(Consumer, 위 설명의 ack.test.queue의 Consumer)는 Auto ack와 Requeue가
         //false여야 한다는 점입니다. 이유는 Auto ack가 true인 경우에(spring.rabbitmq.listener.simple.acknowledge-mode가 NONE OR @RabbitListener의 ackMode가 NONE)
         //Listener에서 메시지를 받으면 무조건 ack를 자동으로 보내게 되고 메시지는 사라지게 됩니다. 따라서 DLX로 전송할 메시지가 없어지게 됩니다.
-        //Requeue가 true인 경우 DLX로 메시지가 전송되지 않고 메시지를 보내준 Queue로 다시 돌아가게 되어 DLX로 메시지가 전송되지 못하게 됩니다.
+        //Requeue가 true인 경우 DLX로 메시지가 전송되지 않고 메시지를 보내준 Queue로 다시 돌아가게 된후 Consumer에게 다시 메시지를 보내는 과정을 무한반복하게 되어
+        //DLX로 메시지가 전송되지 못하게 됩니다.
 
         //[Queue의 Requeue 설정에 대해]
         //@RabbitListener에서 Queue의 Requeue를 직접 바꾸는 속성은 없습니다. 하지만 @RabbitListener에서 Queue의 Requeue를 변경하는 네가지 방법이 있습니다.
