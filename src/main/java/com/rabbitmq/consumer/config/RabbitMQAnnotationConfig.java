@@ -1,13 +1,14 @@
 package com.rabbitmq.consumer.config;
 
-import org.springframework.amqp.core.*;
-import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
-import org.springframework.amqp.rabbit.connection.ConnectionFactory;
-import org.springframework.amqp.rabbit.listener.RabbitListenerContainerFactory;
-import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer;
-import org.springframework.amqp.rabbit.listener.adapter.MessageListenerAdapter;
-import org.springframework.beans.factory.annotation.Configurable;
-import org.springframework.boot.autoconfigure.amqp.SimpleRabbitListenerContainerFactoryConfigurer;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.springframework.amqp.core.Binding;
+import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.DirectExchange;
+import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -17,7 +18,7 @@ import java.util.Map;
 
 @Profile("annotation")
 @Configuration
-public class RabbitMQConfig {
+public class RabbitMQAnnotationConfig {
 
     //Exchange 이름
     static final String topicExchangeName = "ack.test.exchange";
@@ -61,6 +62,18 @@ public class RabbitMQConfig {
         //Listener에서 메시지를 받으면 무조건 ack를 자동으로 보내게 되고 메시지는 사라지게 됩니다. 따라서 DLX로 전송할 메시지가 없어지게 됩니다.
         //Requeue가 true인 경우 DLX로 메시지가 전송되지 않고 메시지를 보내준 Queue로 다시 돌아가게 되어 DLX로 메시지가 전송되지 못하게 됩니다.
 
+        //[Queue의 Requeue 설정에 대해]
+        //@RabbitListener에서 Queue의 Requeue를 직접 바꾸는 속성은 없습니다. 하지만 @RabbitListener에서 Queue의 Requeue를 변경하는 네가지 방법이 있습니다.
+        //1. spring.rabbitmq.listener.default-requeue-rejected 설정을 true로 설정하는 것입니다. spring.rabbitmq.listener.default-requeue-rejected는
+        //반려된 메시지에 대해 다시 큐에 쌓을지 여부를 설정하며 기본값은 true입니다.
+        //2. @RabbitListener가 선언된 메서드는 파라미터로 Channel을 받을 수 있게 되는데 이 Channel을 통해서 Requeue를 설정할 수 있습니다. Channel이 가진 메서드 중
+        //메시지 수신을 거절하는 basicNack, basicReject의 설정 파라미터 중 Requeue를 설정할 수 있는 파라미터가 있어서 해당 값을 true or false로 설정하는 것으로 Requeue에 대한 
+        //설정을 할 수 있습니다.
+        //3. RabbitListenerContainerFactory를 Bean으로 등록하여 @RabbitListener에서 자동으로 적용되도록한 뒤 SimpleRabbitListenerContainerFactory의
+        //setDefaultRequeueRejected를 true or false를 설정하는 것으로 Requeue에 대한 설정을 할 수 있습니다.
+        //4. @RabbitListener를 사용하지 않고 SimpleMessageListenerContainer를 사용해 Listener(Consumer)로 사용하는 경우 SimpleMessageListenerContainer의
+        //setDefaultRequeueRejected에서 true or false를 설정하는 것으로 Requeue에 대한 설정을 할 수 있습니다.
+
         //Arguments를 통하여 DLX, TTL등의 설정들을 Queue에 적용합니다.
         //Queue는 DLX, TTL등의 설정을 Arguments 외에 설정하는 방법이 하나 더 있는데 Policy입니다. 우선순위로는 Policy보다 Arguments가 더 높습니다.
         arguments.put("x-dead-letter-exchange", "x.dead.exchange");
@@ -77,32 +90,19 @@ public class RabbitMQConfig {
         return BindingBuilder.bind(queue).to(exchange).with("ack.routing.key");
     }
 
-    //Message Listener Container
-//    @Bean
-//    SimpleMessageListenerContainer container(ConnectionFactory connectionFactory, MessageListenerAdapter listenerAdapter) {
-//        SimpleMessageListenerContainer container = new SimpleMessageListenerContainer();
-//        container.setConnectionFactory(connectionFactory);
-//        container.setQueueNames(queueName);
-//        container.setMessageListener(listenerAdapter);
-//
-//        return container;
-//    }
-//
-//    @Bean
-//    MessageListenerAdapter listenerAdapter(Receiver receiver) {
-//        return new MessageListenerAdapter(receiver, "receiveMessage");
-//    }
+    @Bean
+    public MessageConverter jsonMessageConverter() {
+        //LocalDateTime serializable을 위해
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, true);
+        objectMapper.registerModule(dateTimeModule());
 
-//    @Bean
-//    public RabbitListenerContainerFactory<SimpleMessageListenerContainer> prefetchOneContainerFactory(
-//            SimpleRabbitListenerContainerFactoryConfigurer configurer, ConnectionFactory connectionFactory) {
-//
-//        SimpleRabbitListenerContainerFactory simpleRabbitListenerContainerFactory = new SimpleRabbitListenerContainerFactory();
-//        configurer.configure(simpleRabbitListenerContainerFactory, connectionFactory);
-//        simpleRabbitListenerContainerFactory.setPrefetchCount(1);
-//
-//        return simpleRabbitListenerContainerFactory;
-//
-//    }
+        return new Jackson2JsonMessageConverter(objectMapper);
+    }
+
+    @Bean
+    public JavaTimeModule dateTimeModule() {
+        return new JavaTimeModule();
+    }
 
 }

@@ -1,6 +1,7 @@
 package com.rabbitmq.consumer.listener;
 
 import com.rabbitmq.client.Channel;
+import com.rabbitmq.consumer.dto.MessageInfo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.ExchangeTypes;
 import org.springframework.amqp.core.Message;
@@ -48,13 +49,31 @@ import java.io.IOException;
 //[@RabbitListener의 concurrency]
 //concurrency를 설정하게 되면 queue에 연결되는 Consumer의 개수를 조절할 수 있습니다. default는 1로 하나의 Consumer만 연결되며
 //만약 3으로 늘리게되면 queue에 3개의 Consumer가 생성되어 3개의 Consumer가 메시지를 가져가서 처리합니다.
-public class MessageListener {
+public class AnnotationMessageListener {
     //ack.test.queue는 RabbitMQConfig에서 arguments에 DLX 설정이 되어있는데 현재 @RabbitListener에서 ackMode 설정, nack or reject 수행을
     //하고 있지 않기 때문에 arguments에 DLX 설정이 적용되지 않는 상태입니다. 만약 DLX 설정을 유효하게 하려면 ackMode를 MANUAL로 변경하고
     //channel.basicNack(requeue를 false로 설정) 또는 channel.basicReject(requeue를 false로 설정)를 수행해야 합니다.
-    @RabbitListener(queues = "ack.test.queue")
+    @RabbitListener(queues = "ack.test.queue", messageConverter = "jsonMessageConverter") //jsonMessageConverter를 Bean으로 동록하지 않을시 Producer에서 보낸 메시지
+    //타입(Producer에서 사용하고 있는 Dto 객체, Consumer 측에도 해당 Dto 객체가 있어야 함)으로 메시지를 변환하는 기능이 수행되지 못하고 따라서 메시지를 받으려고 하면 메시지 타입 오류가
+    //발생하게 됩니다. jsonMessageConverter라는 이름은 RabbitMQAnnotationConfig에 Bean으로 등록되어 있는 메서드명입니다. @Bean으로 jsonMessageConverter를 등록만 해놓으면
+    //별도로 @RabbitListener의 속성으로 messageConverter를 설정하지 않아도 자동으로 사용이 가능하지만 위에서는 설명을 위해서 명시적으로 속성을 표시 해놓았습니다.
     void receiveMessage(Message message) {
         log.info("<==================== Receive Message" + message);
+    }
+
+    //@Exchange, @Queue에 선언된 Exchange, Queue가 없을시 자동으로 생성해주며 기존에 존재할시 모든 속성(Queue의 경우 arguments가 설정되어 있으므로 arguments 포함)이 같아야
+    //정상적으로 연결됩니다.
+    @RabbitListener(bindings = @QueueBinding(
+            value = @Queue(value = "messageInfo.test.queue", durable = "false", exclusive = "false", autoDelete = "false",
+                    arguments = { @Argument(name = "x-dead-letter-exchange", value = "dead.letter.exchange", type = "java.lang.String"),
+                            @Argument(name = "x-dead-letter-routing-key", value = "dlx.routing.key", type = "java.lang.String") }),
+            exchange = @Exchange(value = "messageInfo.test.exchange", type = ExchangeTypes.DIRECT, autoDelete = "false"),
+            key = "messageInfo.routing.key"),
+            ackMode = "AUTO",
+            messageConverter = "jsonMessageConverter"
+    )
+    void receiveMessageInfo(MessageInfo messageInfo) {
+        log.info("<==================== Receive MessageInfo" + messageInfo);
     }
 
     //@Exchange, @Queue에 선언된 Exchange, Queue가 없을시 자동으로 생성해주며 기존에 존재할시 모든 속성(Queue의 경우 arguments가 설정되어 있으므로 arguments 포함)이 같아야
@@ -65,7 +84,8 @@ public class MessageListener {
                             @Argument(name = "x-dead-letter-routing-key", value = "dlx.routing.key", type = "java.lang.String") }),
             exchange = @Exchange(value = "nack.test.exchange", type = ExchangeTypes.DIRECT, autoDelete = "false"),
             key = "nack.routing.key"),
-            ackMode = "MANUAL"
+            ackMode = "MANUAL",
+            messageConverter = "jsonMessageConverter"
     )
     void nackMessage(Message message, Channel channel) throws IOException {
         log.info("<==================== Nack Message");
@@ -80,7 +100,8 @@ public class MessageListener {
                             @Argument(name = "x-dead-letter-routing-key", value = "dlx.routing.key", type = "java.lang.String") }),
             exchange = @Exchange(value = "reject.test.exchange", type = ExchangeTypes.DIRECT, autoDelete = "false"),
             key = "reject.routing.key"),
-            ackMode = "MANUAL"
+            ackMode = "MANUAL",
+            messageConverter = "jsonMessageConverter"
     )
     void rejectMessage(Message message, Channel channel) throws IOException {
         log.info("<==================== Reject Message");
@@ -102,8 +123,8 @@ public class MessageListener {
                             @Argument(name = "x-message-ttl", value = "10000", type = "java.lang.Integer")}),
             exchange = @Exchange(value = "ttl.test.exchange", type = ExchangeTypes.DIRECT, autoDelete = "false"),
             key = "ttl.routing.key"),
-            ackMode = "MANUAL"
-
+            ackMode = "MANUAL",
+            messageConverter = "jsonMessageConverter"
     )
     void ttlMessage(Message message, Channel channel) throws IOException {
 
@@ -113,7 +134,7 @@ public class MessageListener {
     //해당 로직을 주석 처리하는 경우 dead.letter.queue에 쌓인 메시지(Dead Letter)는 소비되지 않아 계속 쌓여있게 되고
     //해당 로직이 활성화 되어있는 경우 dead.letter.queue에서 메시지를 계속해서 가져오게 되므로 dead.letter.queue에
     //메시지가 쌓이지 않게 됩니다.
-    @RabbitListener(queues = "dead.letter.queue")
+    @RabbitListener(queues = "dead.letter.queue", messageConverter = "jsonMessageConverter")
     void receiveDeadLetter(Message message) {
         log.info("<==================== Receive Dead Letter" + message);
     }
