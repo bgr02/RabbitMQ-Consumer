@@ -52,12 +52,10 @@ import java.io.IOException;
 public class AnnotationMessageListener {
     //ack.test.queue는 RabbitMQConfig에서 arguments에 DLX 설정이 되어있는데 현재 @RabbitListener에서 ackMode 설정, nack or reject 수행을
     //하고 있지 않기 때문에 arguments에 DLX 설정이 적용되지 않는 상태입니다. 만약 DLX 설정을 유효하게 하려면 ackMode를 MANUAL로 변경하고
-    //channel.basicNack(requeue를 false로 설정) 또는 channel.basicReject(requeue를 false로 설정)를 수행해야 합니다.
-    @RabbitListener(queues = "ack.test.queue", messageConverter = "jsonMessageConverter") //jsonMessageConverter를 Bean으로 동록하지 않을시 Producer에서 보낸 메시지
-    //타입(Producer에서 사용하고 있는 Dto 객체, Consumer 측에도 해당 Dto 객체가 있어야 함)으로 메시지를 변환하는 기능이 수행되지 못하고 따라서 메시지를 받으려고 하면 메시지 타입 오류가
-    //발생하게 됩니다. jsonMessageConverter라는 이름은 RabbitMQAnnotationConfig에 Bean으로 등록되어 있는 메서드명입니다. @Bean으로 jsonMessageConverter를 등록만 해놓으면
-    //별도로 @RabbitListener의 속성으로 messageConverter를 설정하지 않아도 자동으로 사용이 가능하지만 위에서는 설명을 위해서 명시적으로 속성을 표시 해놓았습니다.
-    void receiveMessage(Message message) {
+    //오류가 발생할 수 있는 로직에 대해서 조건문을 작성하고 조건문 내부에 channel.basicNack(requeue를 false로 설정) 또는 channel.basicReject(requeue를 false로 설정)이
+    //수행되도록 로직을 구성해야 합니다.
+    @RabbitListener(queues = "ack.test.queue", messageConverter = "jsonMessageConverter")
+    void receiveMessage(Message message) throws IOException {
         log.info("<==================== Receive Message" + message);
     }
 
@@ -70,7 +68,10 @@ public class AnnotationMessageListener {
             exchange = @Exchange(value = "messageInfo.test.exchange", type = ExchangeTypes.DIRECT, autoDelete = "false"),
             key = "messageInfo.routing.key"),
             ackMode = "AUTO",
-            messageConverter = "jsonMessageConverter"
+            messageConverter = "jsonMessageConverter" //jsonMessageConverter를 Bean으로 동록하지 않을시 Producer에서 보낸 메시지
+            //타입(Producer에서 사용하고 있는 Dto 객체, Consumer 측에도 해당 Dto 객체가 있어야 함)으로 메시지를 변환하는 기능이 수행되지 못하고 따라서 메시지를 받으려고 하면 메시지 타입
+            //오류가 발생하게 됩니다. jsonMessageConverter라는 이름은 RabbitMQAnnotationConfig에 Bean으로 등록되어 있는 메서드명입니다. @Bean으로 jsonMessageConverter를
+            //등록만 해놓으면 별도로 @RabbitListener의 속성으로 messageConverter를 설정하지 않아도 자동으로 사용이 가능하지만 위에서는 설명을 위해서 명시적으로 속성을 표시 해놓았습니다.
     )
     void receiveMessageInfo(MessageInfo messageInfo) {
         log.info("<==================== Receive MessageInfo" + messageInfo);
