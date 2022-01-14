@@ -8,6 +8,7 @@ import com.rabbitmq.consumer.receiver.Receiver;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.rabbit.listener.DirectMessageListenerContainer;
 import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer;
 import org.springframework.amqp.rabbit.listener.adapter.MessageListenerAdapter;
 import org.springframework.amqp.rabbit.listener.api.ChannelAwareMessageListener;
@@ -48,6 +49,15 @@ public class RabbitMQContainerConfig {
     Binding binding(Queue queue, DirectExchange exchange) {
         return BindingBuilder.bind(queue).to(exchange).with("ack.receiver.routing.key");
     }
+
+    //[RabbitMQ의 Simple, Direct]
+    //RabbitMQ의 MessageListenerContainer는 SimpleMessageListenerContainer, DirectMessageListenerContainer 두 가지가 있습니다.(factory도 Simple, Direct로 나뉘어져 있음)
+    //SimpleMessageListenerContainer은 기존에 사용하던 MessageListenerContainer이며 DirectMessageListenerContainer는 버전업이 되면서
+    //추가된 MessageListenerContainer입니다. default로 설정된 MessageListenerContainer는 SimpleMessageListenerContainer이며 Bean으로
+    //등록하는 것으로 DirectMessageListenerContainer로 바꾸어서 사용할 수 있습니다. 이와 마찬가지로 RabbitMQ 관련 application.yml의 속성도
+    //simple, direct로 구분되어 있으며 설정을 따로따로 적용할 수 있습니다. Simpe과 Direct는 각자 지원하는 기능과 지원하지 않는 기능이 다르므로
+    //필요한 케이스에 따라서 선택적으로 사용하는 것이 좋습니다. 일반적인 케이스는 웬만해선 Simple로 대응이 가능하며 Direct만 지원하는 기능이 필요한 경우
+    //변경해서 사용하는 것이 보편적입니다.
 
     //[SimpleMessageListenerContainer의 특징]
     //1. SimpleMessageListenerContainer는 Message Listener Container이며 AbstractMessageListenerContainer를 상속받고 있고
