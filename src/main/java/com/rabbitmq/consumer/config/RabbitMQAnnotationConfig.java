@@ -45,7 +45,7 @@ public class RabbitMQAnnotationConfig {
         //1. RabbitMQ 관리자 콘솔에서 DLX(Dead Letter Exchange)를 x.dead.exchange라는 이름으로 생성합니다. DLX라고 해서 특별한 Exchange가 아니고 그냥 평범한 Exchange입니다.
         //맡은 역할이 Dead Letter를 전송하는 Exchange라서 그렇게 부를뿐입니다. 타입은 Direct로 생성하겠습니다. 상황에 따라 다른 타입으로 생성해도 됩니다.
         //2. DLX에서 전달받은 메시지를 넘겨줄 Queue를 dead.letter.queue라는 이름으로 생성합니다.
-        //3. x.dead.exchange와 dead.queue를 routing key로 바인딩합니다. routing key 값은 dlx.routing.key로 설정합니다.
+        //3. x.dead.exchange와 dead.letter.queue를 routing key로 바인딩합니다. routing key 값은 dlx.routing.key로 설정합니다.
         //4. DLX에서 전송받는 Dead Leter는 다른 exchange와 바인딩된 Queue에서 전달받는데 이 둘을 연결하는 역할을 하는것이 x-dead-letter-exchange, x-dead-letter-routing-key 두 가지
         //arguments입니다.
         //5. DLX에 Dead Leter를 전송해주는 다른 exchange와 바인딩된 Queue의 이름을 ack.test.queue로 설정하여 생성할때 arguments에 x-dead-letter-exchange는 x.dead.exchange로
@@ -57,7 +57,7 @@ public class RabbitMQAnnotationConfig {
         //3. Queue가 가득차서 넘치는 경우(x-max-length)
         //7. dead.letter.queue에 Dead Letter가 쌓여도 자동으로 Dead Letter가 삭제되는 등의 처리가 되지는 않습니다. dead.letter.queue와 연결된 Consumer에서 Dead Letter를 가져가서
         //ack를 보내주고 Requeue 처리하는 등의 적절한 로직을 구성하여 Dead Letter를 처리해야 합니다.
-        //8. DLX 설정을 위해서는 위의 설정을 마치가 한가지더 설정이 있습니다. 메시지를 전송받는 Listener(Consumer, 위 설명의 ack.test.queue의 Consumer)는 Auto ack와 Requeue가
+        //8. DLX 설정을 위해서는 위의 설정외에 한가지더 설정이 있습니다. 메시지를 전송받는 Listener(Consumer, 위 설명의 ack.test.queue의 Consumer)는 Auto ack와 Requeue가
         //false여야 한다는 점입니다. 이유는 Auto ack가 true인 경우에(spring.rabbitmq.listener.simple.acknowledge-mode가 NONE OR @RabbitListener의 ackMode가 NONE)
         //Listener에서 메시지를 받으면 무조건 ack를 자동으로 보내게 되고 메시지는 사라지게 됩니다. 따라서 DLX로 전송할 메시지가 없어지게 됩니다.
         //Requeue가 true인 경우 DLX로 메시지가 전송되지 않고 메시지를 보내준 Queue로 다시 돌아가게 된후 Consumer에게 다시 메시지를 보내는 과정을 무한반복하게 되어
